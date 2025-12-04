@@ -1,4 +1,4 @@
-import type { AppData, Task, Log, UserSettings } from '../types';
+import type { AppData } from '../types';
 
 const STORAGE_KEY = 'dailysync_data_v1';
 

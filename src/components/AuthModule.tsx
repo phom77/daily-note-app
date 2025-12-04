@@ -6,7 +6,7 @@ interface AuthModuleProps {
   onLoginSuccess: () => void; // Supabase handles session, no need to pass token manually
 }
 
-export const AuthModule: React.FC<AuthModuleProps> = ({ onLoginSuccess }) => {
+export const AuthModule: React.FC<AuthModuleProps> = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

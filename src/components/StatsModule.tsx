@@ -11,7 +11,7 @@ interface StatsModuleProps {
   logs: Log[];
 }
 
-export const StatsModule: React.FC<StatsModuleProps> = ({ tasks, logs }) => {
+export const StatsModule: React.FC<StatsModuleProps> = ({ tasks }) => {
   
   // FIX: Use Local Time
   const getTodayLocal = () => {

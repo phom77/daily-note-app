@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, LogOut } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { TaskModule } from './components/TaskModule';
