@@ -15,7 +15,6 @@ export const TaskModule: React.FC<TaskModuleProps> = ({ tasks, setTasks, isFocus
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('medium');
   
   // DATE NAVIGATION STATE
-  // FIX: Use Local Time instead of UTC (toISOString)
   const getTodayLocal = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -33,7 +32,6 @@ export const TaskModule: React.FC<TaskModuleProps> = ({ tasks, setTasks, isFocus
   const timerRef = useRef<number | null>(null);
 
   const isToday = selectedDate === todayStr;
-  const isLoggedIn = !!localStorage.getItem('token');
 
   // --- POMODORO LOGIC ---
   useEffect(() => {
@@ -104,6 +102,8 @@ export const TaskModule: React.FC<TaskModuleProps> = ({ tasks, setTasks, isFocus
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     
+    // Optimistic UI: Create temporary task
+    const tempId = Date.now();
     const taskPayload = {
       title: newTaskTitle,
       done: false,
@@ -111,21 +111,24 @@ export const TaskModule: React.FC<TaskModuleProps> = ({ tasks, setTasks, isFocus
       priority: newTaskPriority
     };
 
-    if (isLoggedIn) {
-      try {
-        const savedTask = await apiService.addTask(taskPayload);
-        setTasks([savedTask, ...tasks]);
-      } catch (err) {
-        console.error(err);
-        alert("Failed to save task to server");
-      }
-    } else {
-      const newTask: Task = { id: Date.now(), ...taskPayload };
-      setTasks([newTask, ...tasks]);
-    }
-
+    const tempTask: Task = { id: tempId, ...taskPayload };
+    const optimisticTasks = [tempTask, ...tasks];
+    setTasks(optimisticTasks); // Show immediately
+    
     setNewTaskTitle('');
     setNewTaskPriority('medium');
+
+    try {
+      // Call Real API
+      const savedTask = await apiService.addTask(taskPayload);
+      // Replace temp task with real task from server
+      setTasks(optimisticTasks.map(t => t.id === tempId ? savedTask : t));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save task. Check console for details.");
+      // Rollback
+      setTasks(tasks);
+    }
   };
 
   const toggleTask = async (id: number) => {
@@ -137,14 +140,13 @@ export const TaskModule: React.FC<TaskModuleProps> = ({ tasks, setTasks, isFocus
     // Optimistic Update
     setTasks(tasks.map(t => t.id === id ? { ...t, done: newDoneStatus } : t));
 
-    if (isLoggedIn) {
-       try {
-         await apiService.updateTask(id, { done: newDoneStatus });
-       } catch (err) {
-         console.error(err);
-         // Revert on fail
-         setTasks(tasks.map(t => t.id === id ? { ...t, done: !newDoneStatus } : t));
-       }
+    try {
+      await apiService.updateTask(id, { done: newDoneStatus });
+    } catch (err) {
+      console.error(err);
+      // Revert on fail
+      setTasks(tasks.map(t => t.id === id ? { ...t, done: !newDoneStatus } : t));
+      alert("Failed to update task status.");
     }
   };
 
@@ -153,13 +155,12 @@ export const TaskModule: React.FC<TaskModuleProps> = ({ tasks, setTasks, isFocus
     const prevTasks = [...tasks];
     setTasks(tasks.filter(t => t.id !== id));
 
-    if (isLoggedIn) {
-      try {
-        await apiService.deleteTask(id);
-      } catch (err) {
-        console.error(err);
-        setTasks(prevTasks); // Revert
-      }
+    try {
+      await apiService.deleteTask(id);
+    } catch (err) {
+      console.error(err);
+      setTasks(prevTasks); // Revert
+      alert("Failed to delete task.");
     }
   };
 

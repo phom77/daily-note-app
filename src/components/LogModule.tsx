@@ -26,8 +26,6 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
   // UI State for Folders
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
-  const isLoggedIn = !!localStorage.getItem('token');
-
   useEffect(() => {
     if (selectedLogId) {
       const log = logs.find(l => l.id === selectedLogId);
@@ -58,35 +56,23 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
       nextReviewDate: nextReview || null
     };
 
-    if (isLoggedIn) {
-       // --- API MODE ---
-       const payload = selectedLogId ? { ...logData, id: selectedLogId, createdAt: Date.now() } : { ...logData, createdAt: Date.now() }; 
-       // Note: createdAt typically managed by server or kept from original, but simplifying here
-       try {
-         const savedLog = await apiService.saveLog(payload as Log);
-         if (selectedLogId) {
+    // --- API MODE (Always Active) ---
+    // Optimistic Update can be tricky for new IDs, so we'll wait for server for ID
+    // Or we can use a temporary ID.
+    
+    const payload = selectedLogId ? { ...logData, id: selectedLogId, createdAt: Date.now() } : { ...logData, createdAt: Date.now() }; 
+    
+    try {
+        const savedLog = await apiService.saveLog(payload as Log);
+        if (selectedLogId) {
             setLogs(logs.map(l => l.id === selectedLogId ? savedLog : l));
-         } else {
+        } else {
             setLogs([savedLog, ...logs]);
             setSelectedLogId(savedLog.id);
-         }
-       } catch (err) {
-         console.error(err);
-         alert("Failed to save log to server");
-       }
-    } else {
-      // --- LOCAL STORAGE MODE ---
-      if (selectedLogId) {
-        setLogs(logs.map(l => l.id === selectedLogId ? { ...l, ...logData } : l));
-      } else {
-        const newLog: Log = { 
-          id: Date.now(), 
-          createdAt: Date.now(), 
-          ...logData 
-        };
-        setLogs([newLog, ...logs]);
-        setSelectedLogId(newLog.id);
-      }
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Failed to save log. Check console for details.");
     }
   };
 
