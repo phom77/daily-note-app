@@ -48,19 +48,21 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
   const handleSave = async () => {
     if (!editTitle.trim()) return;
     
+    // Find existing log to preserve creation date if editing
+    const existingLog = logs.find(l => l.id === selectedLogId);
+
     const logData = {
       title: editTitle,
       content: editContent,
       tags: editTags,
       folder: editFolder.trim(),
-      nextReviewDate: nextReview || null
+      nextReviewDate: nextReview || null,
+      // If editing, keep original date. If new, use now.
+      createdAt: existingLog ? existingLog.createdAt : Date.now()
     };
-
-    // --- API MODE (Always Active) ---
-    // Optimistic Update can be tricky for new IDs, so we'll wait for server for ID
-    // Or we can use a temporary ID.
     
-    const payload = selectedLogId ? { ...logData, id: selectedLogId, createdAt: Date.now() } : { ...logData, createdAt: Date.now() }; 
+    // Construct payload. If new (no selectedLogId), we don't pass an ID, enabling apiService to detect it as INSERT.
+    const payload = selectedLogId ? { ...logData, id: selectedLogId } : logData;
     
     try {
         const savedLog = await apiService.saveLog(payload as Log);

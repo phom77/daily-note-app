@@ -106,7 +106,7 @@ export const apiService = {
     if (!user) throw new Error("User not authenticated");
 
     const payload = {
-      user_id: user.id, // CRITICAL FIX
+      user_id: user.id,
       title: log.title,
       content: log.content,
       tags: log.tags,
@@ -115,7 +115,9 @@ export const apiService = {
       next_review_date: log.nextReviewDate
     };
 
-    const isNew = log.id > 1000000000000; 
+    // FIX: Check if ID is missing (undefined/null) OR if it is a large timestamp ID (legacy local ID).
+    // Standard Supabase IDs are small integers (1, 2, 3...), Local IDs were Date.now() (171...).
+    const isNew = !log.id || log.id > 1000000000000; 
 
     let data, error;
 
@@ -125,7 +127,7 @@ export const apiService = {
        data = res.data;
        error = res.error;
     } else {
-       // Update (exclude user_id in update strictly speaking, but safe to keep)
+       // Update
        const res = await supabase.from('logs').update(payload).eq('id', log.id).select().single();
        data = res.data;
        error = res.error;
