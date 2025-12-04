@@ -1,73 +1,116 @@
-# React + TypeScript + Vite
+# DailySync - Smart Learning Hub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://daily-note-app.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Currently, two official plugins are available:
+> **DailySync** is a productivity dashboard designed for self-learners and developers. It combines task management, structured note-taking, and habit tracking analytics into a single, cohesive interface.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Why I Built This
 
-## React Compiler
+I needed a tool that wasn't just a To-Do list. Most productivity apps separate "doing" (Tasks) from "learning" (Notes) and "reviewing" (Stats).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+DailySync solves this by integrating:
+1.  **Task Management** with priority levels.
+2.  **Spaced Repetition Logs** for tracking learning progress.
+3.  **Visual Analytics** (Heatmaps & Charts) to maintain consistency.
+4.  **Cloud Sync** via Supabase so I can access it from any device.
 
-## Expanding the ESLint configuration
+## ⚡ Key Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+*   **Task Management**: Drag-and-drop feel, priority tagging (High/Medium/Low), and completion tracking.
+*   **Focus Mode**: Built-in Pomodoro timer with a distraction-free UI.
+*   **Smart Notes (Logs)**: Markdown-style editor with folder organization and tagging system.
+*   **Analytics Dashboard**: 
+    *   GitHub-style contribution heatmap (Last 365 days).
+    *   Monthly consistency charts.
+    *   Streak counter and "Unfinished Business" tracker.
+*   **Authentication**: Secure Email/Password login powered by Supabase Auth.
+*   **Responsive Design**: Fully optimized for Desktop, Tablet, and Mobile.
+*   **Dark Mode**: toggleable theme for late-night study sessions.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🛠 Tech Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+*   **Frontend**: React 19, TypeScript, Vite.
+*   **Styling**: Tailwind CSS (Mobile-first approach).
+*   **Backend / DB**: Supabase (PostgreSQL, Auth, Realtime).
+*   **Visualization**: Recharts.
+*   **Icons**: Lucide React.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 📦 Local Development
+
+Follow these steps to run the project locally:
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/your-username/dailysync.git
+cd dailysync
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. Install dependencies
+```bash
+npm install
 ```
+
+### 3. Configure Environment Variables
+Create a `.env` file in the root directory and add your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 4. Run the app
+```bash
+npm run dev
+```
+
+## 🗄️ Database Schema (Supabase)
+
+If you are setting up your own Supabase instance, here is the SQL structure used:
+
+**Table: `tasks`**
+```sql
+create table public.tasks (
+  id bigint generated by default as identity primary key,
+  user_id uuid references auth.users not null,
+  title text not null,
+  done boolean default false,
+  date text not null, -- Format: YYYY-MM-DD
+  priority text default 'medium',
+  is_system_generated boolean default false,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+```
+
+**Table: `logs`**
+```sql
+create table public.logs (
+  id bigint generated by default as identity primary key,
+  user_id uuid references auth.users not null,
+  title text not null,
+  content text,
+  tags jsonb default '[]'::jsonb,
+  folder text,
+  created_at_ts bigint, -- Timestamp
+  next_review_date text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+```
+
+*Note: Enable Row Level Security (RLS) on both tables to ensure users can only see their own data.*
+
+## 📈 Roadmap
+
+- [x] Migrate from LocalStorage/Node.js to Supabase.
+- [x] Implement Dark Mode.
+- [ ] Add drag-and-drop for task reordering.
+- [ ] Export data to PDF/Markdown.
+- [ ] Google Calendar integration.
+
+## 🤝 Contributing
+
+Contributions are welcome! If you have suggestions for improvements, feel free to open an issue or submit a pull request.
+
+---
+
+Built with ❤️ by [Your Name](https://github.com/your-username)
