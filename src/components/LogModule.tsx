@@ -11,39 +11,74 @@ interface LogModuleProps {
   toggleFocusMode: () => void;
 }
 
+const DRAFT_KEY = 'dailysync_log_draft';
+
 export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, isFocusMode, toggleFocusMode }) => {
-  const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
+  // --- DRAFT LOADING LOGIC ---
+  const loadDraft = () => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const draft = loadDraft();
+
+  // Initialize state from Draft if exists, otherwise default
+  const [selectedLogId, setSelectedLogId] = useState<number | null>(draft?.id ?? null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Editor State
-  const [editTitle, setEditTitle] = useState('');
-  const [editContent, setEditContent] = useState('');
-  const [editTags, setEditTags] = useState<string[]>([]);
-  const [editFolder, setEditFolder] = useState('');
+  // Editor State (Initialized from Draft)
+  const [editTitle, setEditTitle] = useState(draft?.title ?? '');
+  const [editContent, setEditContent] = useState(draft?.content ?? '');
+  const [editTags, setEditTags] = useState<string[]>(draft?.tags ?? []);
+  const [editFolder, setEditFolder] = useState(draft?.folder ?? '');
   const [tagInput, setTagInput] = useState('');
-  const [nextReview, setNextReview] = useState('');
+  const [nextReview, setNextReview] = useState(draft?.nextReviewDate ?? '');
 
   // UI State for Folders
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
 
+  // --- AUTO SAVE DRAFT ---
+  // Whenever any editor field changes, save to localStorage
   useEffect(() => {
-    if (selectedLogId) {
-      const log = logs.find(l => l.id === selectedLogId);
-      if (log) {
-        setEditTitle(log.title);
-        setEditContent(log.content);
-        setEditTags(log.tags);
-        setEditFolder(log.folder || '');
-        setNextReview(log.nextReviewDate || '');
-      }
-    } else {
-      setEditTitle('');
-      setEditContent('');
-      setEditTags([]);
-      setEditFolder('');
-      setNextReview('');
-    }
-  }, [selectedLogId, logs]);
+    const currentDraft = {
+      id: selectedLogId,
+      title: editTitle,
+      content: editContent,
+      tags: editTags,
+      folder: editFolder,
+      nextReviewDate: nextReview
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(currentDraft));
+  }, [selectedLogId, editTitle, editContent, editTags, editFolder, nextReview]);
+
+  // Removed the old useEffect that synced selectedLogId with fields.
+  // Instead, we populate fields explicitly when a log is selected via handleLogSelect.
+
+  const handleLogSelect = (log: Log) => {
+    // If we select a log from the sidebar, we load it into the editor
+    // This overwrites any current draft (which is expected behavior when clicking a new item)
+    setSelectedLogId(log.id);
+    setEditTitle(log.title);
+    setEditContent(log.content);
+    setEditTags(log.tags);
+    setEditFolder(log.folder || '');
+    setNextReview(log.nextReviewDate || '');
+  };
+
+  const handleCreateNew = () => {
+    // Clear draft and reset fields
+    localStorage.removeItem(DRAFT_KEY);
+    setSelectedLogId(null);
+    setEditTitle(''); 
+    setEditContent(''); 
+    setEditTags([]); 
+    setEditFolder(''); 
+    setNextReview('');
+  };
 
   const handleSave = async () => {
     if (!editTitle.trim()) return;
@@ -61,11 +96,15 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
       createdAt: existingLog ? existingLog.createdAt : Date.now()
     };
     
-    // Construct payload. If new (no selectedLogId), we don't pass an ID, enabling apiService to detect it as INSERT.
+    // Construct payload
     const payload = selectedLogId ? { ...logData, id: selectedLogId } : logData;
     
     try {
         const savedLog = await apiService.saveLog(payload as Log);
+        
+        // Clear draft on successful save
+        localStorage.removeItem(DRAFT_KEY);
+
         if (selectedLogId) {
             setLogs(logs.map(l => l.id === selectedLogId ? savedLog : l));
         } else {
@@ -76,11 +115,6 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
         console.error(err);
         alert("Failed to save log. Check console for details.");
     }
-  };
-
-  const handleCreateNew = () => {
-    setSelectedLogId(null);
-    setEditTitle(''); setEditContent(''); setEditTags([]); setEditFolder(''); setNextReview('');
   };
 
   const addTag = (e: React.KeyboardEvent) => {
@@ -123,7 +157,6 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
   const showList = !isMobile || (isMobile && !selectedLogId && selectedLogId !== 0);
   const showEditor = !isMobile || (isMobile && (selectedLogId || selectedLogId === 0));
 
-  // If focus mode is on, hide the list unless we are on mobile and no log is selected
   const actuallyShowList = isFocusMode ? false : showList;
   const actuallyShowEditor = isFocusMode ? true : showEditor;
 
@@ -143,7 +176,8 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
               className="w-full pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg text-sm focus:outline-none focus:border-emerald-500 transition-colors dark:text-neutral-200"
             />
           </div>
-          <button onClick={() => isMobile ? setSelectedLogId(0) : handleCreateNew()} className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm shadow-emerald-200 dark:shadow-none">
+          {/* Handle create new explicitly */}
+          <button onClick={handleCreateNew} className="w-full flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors shadow-sm shadow-emerald-200 dark:shadow-none">
             <Plus size={16} /> New Note
           </button>
         </div>
@@ -174,7 +208,7 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
                           key={log.id} 
                           log={log} 
                           isActive={selectedLogId === log.id} 
-                          onClick={() => setSelectedLogId(log.id)} 
+                          onClick={() => handleLogSelect(log)} 
                         />
                      ))}
                    </div>
@@ -196,7 +230,7 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
                         key={log.id} 
                         log={log} 
                         isActive={selectedLogId === log.id} 
-                        onClick={() => setSelectedLogId(log.id)} 
+                        onClick={() => handleLogSelect(log)} 
                       />
                   ))}
                 </div>
@@ -295,7 +329,6 @@ export const LogModule: React.FC<LogModuleProps> = ({ logs, setLogs, isMobile, i
             </div>
 
             {/* Main Text Area - ADDED BORDER & SHADOW */}
-            {/* Kept p-8 to ensure cursor does not overlap with the new border */}
             <div className="flex-1 flex flex-col min-h-[500px] relative">
               <textarea 
                 value={editContent} 
